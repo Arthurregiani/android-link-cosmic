@@ -1,0 +1,26 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+.cache/
+logs/
+*.log
+*.deb
+*.tar.gz
+dist/
+build/
+*.egg-info/
+# Never commit Android's pairing keys or personal environment data
+.android/
+adbkey*
+adb_known_hosts.pb
+*.pem
+*.key
+
+.local-validation/
+*.zip
