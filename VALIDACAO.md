@@ -19,8 +19,12 @@
 - Carga completa: parsing coberto por teste, sem validação física a 100%.
 - Duas entradas simultâneas TCP/mDNS: deduplicação coberta por teste; nesta sessão apareceu apenas um transporte real.
 - Pareamento QR novo não executado: o pareamento existente foi preservado. Segredos QR/ADB passam por stdin e não integram os argumentos dos processos.
-- Google Meet e Discord: recepção real de vídeo ainda pendente. Não inferir compatibilidade a partir da captura V4L2.
-- Discord Flatpak já possui `devices=all`; nenhuma permissão foi ampliada. Não aplicar `--filesystem=host` ou outras permissões amplas para tentar resolver câmera.
+- Google Meet: prévia real validada pelo agente no navegador interno do Codex, câmera Galaxy Camera, vídeo 1280×720, readyState=4 e tempo de reprodução avançando; imagem do telefone inspecionada. Não houve participação em chamada. Evidência visual fica somente em `.local-validation/meet-preview.png` e não é publicada.
+- Houve falha inicial de enumeração no navegador informado pelo usuário e prévia indisponível no teste do agente. Uma ponte GStreamer/PipeWire temporária fez o dispositivo aparecer, mas isso por si só não comprovou vídeo. Depois de encerrar a ponte e recarregar a prévia do Meet, o vídeo V4L2 direto funcionou. Os primeiros quadros estavam quase pretos (luminância média 17,4/255); após reposicionar o telefone foi possível inspecionar imagem real. Não atribuir toda a falha inicial a uma única causa confirmada.
+- O teste PipeWire também recebeu cinco quadros em um consumidor GStreamer com formato explícito. A ponte foi encerrada, não integrada como processo permanente e não é requisito para o fluxo Meet validado.
+- Discord: interface/recepção de vídeo não testada; o usuário limitou a disponibilidade ao Meet. O acesso ao dispositivo foi confirmado dentro do sandbox Flatpak existente, o que não substitui teste do Discord.
+- Navegador Firefox/Zen do usuário: validação visual final não executada pelo agente, pois essa janela não está disponível na automação. A prova de Meet corresponde ao navegador interno do Codex.
+- Discord Flatpak já possui `devices=all`; um processo de inspeção no sandbox confirmou acesso de leitura/escrita a `/dev/video42`, e nenhuma permissão foi ampliada. Não aplicar `--filesystem=host` ou outras permissões amplas para tentar resolver câmera.
 - `scripts/configurar-webcam.sh` não executado. O dispositivo já está pronto; não há necessidade de modificar `/etc/`. O script preserva arquivos diferentes, valida o driver e não descarrega módulo. Antes de uso futuro, conferir também opções existentes de outros arquivos modprobe para evitar conflito.
 - Nenhuma mudança de Secure Boot, MOK, UEFI, EFI, bootloader ou firmware.
 
@@ -46,3 +50,17 @@
 4. Escolha frontal/traseira, resolução e FPS; clique **Usar como webcam virtual**.
 5. No Meet ou Discord, selecione **Galaxy Camera** e confira a prévia antes de participar de chamada.
 6. Use **Parar transmissão** ou feche o Android Link ao terminar.
+
+## Quando a câmera não aparece no navegador
+
+- Inicie **Usar como webcam virtual** antes de abrir a seleção de câmera. Com `exclusive_caps=1`, o loopback anuncia saída antes de receber scrcpy e captura enquanto transmite.
+- Recarregue a aba do Meet, reabra a seleção e escolha **Galaxy Camera**. Confira a permissão de câmera do site. Uma prévia escura também pode ser a lente traseira coberta pelo apoio do telefone.
+- Nesta sessão o PipeWire tinha um dispositivo Galaxy Camera com capacidades antigas de saída, sem fonte de vídeo. Isso é compatível com o [problema documentado pela Mozilla](https://bugzilla.mozilla.org/show_bug.cgi?id=1946916), mas não prova que todos os navegadores usem esse caminho.
+- Para Firefox/Zen que use o backend de câmera PipeWire e continue sem enumerar a webcam, uma alternativa reversível é testar `media.webrtc.camera.allow-pipewire=false` em `about:config`, passando a captura de câmera para V4L2. Anote o valor anterior e restaure-o para reverter. Esta preferência não foi alterada automaticamente nem validada no perfil do usuário.
+- Não reinicie PipeWire/WirePlumber nem amplie permissões globais apenas para tentar resolver enumeração. Essas ações não foram necessárias para a prévia Meet validada.
+
+## Publicação e CI
+
+- Repositório público autorizado: https://github.com/Arthurregiani/android-link-cosmic.
+- Commit de implementação `44c469687eeaa862cc71289ea9769de87d736131`; CI passou em https://github.com/Arthurregiani/android-link-cosmic/actions/runs/39358929049.
+- A revisão final de documentação complementa os resultados de testes no navegador, sem alterar os binários instalados.
