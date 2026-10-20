@@ -1,0 +1,23 @@
+name: Python tests
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  unit-tests:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile source
+        run: python3 -m compileall -q android_link
+      - name: Run unit tests
+        run: PYTHONPATH=. python3 -m unittest discover -s tests -v
+      - name: Check packaging metadata
+        run: bash -n instalar.sh desinstalar.sh scripts/*.sh packaging/*.sh
+      - name: Build Debian package
+        run: ./packaging/build_deb.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-link-deb
+          path: dist/*.deb
