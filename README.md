@@ -1,159 +1,198 @@
-# Android Link · COSMIC (versão 1.1.0)
+# Android Link
 
-Aplicativo local de **uso sob demanda** para Pop!_OS 24.04/COSMIC/Wayland, com interface GTK4. Não é um aplicativo oficial COSMIC e não instala serviços de fundo próprios. Integra ADB Wi-Fi, scrcpy, QR Code e câmera virtual V4L2.
+![CI](https://github.com/Arthurregiani/android-link-cosmic/actions/workflows/ci.yml/badge.svg)
 
-## Pré-requisitos
+Aplicativo desktop para integrar um **Android ao Linux pela rede Wi-Fi**: conexão ADB, pareamento por QR Code, espelhamento de tela, transmissão das câmeras, **webcam virtual** e monitoramento de bateria — tudo por uma interface GTK4.
 
-- Pop!_OS/Ubuntu, sessão gráfica e Python 3 com GTK4 (`python3-gi`, `gir1.2-gtk-4.0`).
-- `qrencode` para o QR Code.
-- ADB oficial já configurado: `~/Android/platform-tools/adb` (37.0.1 no ambiente original).
-- scrcpy 5.0.1 em `~/Downloads/scrcpy-linux-x86_64-v5.0.1/scrcpy` (ou binário compatível configurado).
-- Galaxy A54 e PC na mesma rede local, com **Depuração sem fio** ativa no Android.
+Desenvolvido para **Pop!_OS 24.04 com COSMIC/Wayland**. Não é um componente oficial do COSMIC, do Android ou da Samsung.
 
-**Observação:** pode instalar o aplicativo mesmo se tiver movido os executáveis. Nesse caso, configure as variáveis abaixo.
+**Versão atual:** 1.1.0 · **Idioma da interface:** português · **Funcionamento:** sob demanda, sem daemon próprio permanente.
 
-## Instalação no menu COSMIC
+## Funcionalidades
 
-### Opção A — pacote `.deb` (recomendada para Pop!_OS)
+| Recurso | Como funciona |
+| --- | --- |
+| Descoberta e conexão Wi-Fi | Localiza dispositivos pareados pelo ADB/mDNS e tenta reconectar quando necessário; consolida transportes TCP e mDNS duplicados. |
+| Pareamento por QR Code | Gera um QR na interface para o recurso **Depuração sem fio** do Android; dispensa Android Studio e cabo USB. |
+| Bateria | Exibe percentual e estado de carga do dispositivo selecionado, com atualização aproximada a cada 30 s enquanto o aplicativo está aberto. |
+| Espelhamento | Abre a tela do Android no computador utilizando o scrcpy. |
+| Câmera do celular | Transmite a câmera frontal ou traseira em uma janela, com controles de resolução e FPS. |
+| Webcam virtual | Envia a imagem para o dispositivo V4L2 `/dev/video42` (**Galaxy Camera**) usando o `v4l2loopback`, para seleção por aplicativos compatíveis. |
+| Diagnóstico | Mostra as ferramentas encontradas, estado do ADB/mDNS e disponibilidade da webcam virtual. |
 
-Baixe o arquivo `android-link-cosmic_1.1.0_all.deb` e, na pasta Downloads, execute:
+Não é necessário instalar aplicativo no celular. É necessário **habilitar a depuração sem fio** no Android e autorizar o pareamento.
+
+## Requisitos
+
+- **Linux:** testado no Pop!_OS 24.04, sessão COSMIC/Wayland. Outras distribuições e desktops não possuem a mesma validação.
+- **Interface:** Python 3, GTK4/PyGObject e `qrencode` (instalados como dependências pelo pacote `.deb`).
+- **ADB:** Android SDK Platform-Tools com suporte a pareamento e descoberta mDNS. A versão **37.0.1** foi validada.
+- **scrcpy:** versão com suporte a `--video-source=camera` (2.2 ou superior); a **5.0.1** foi validada.
+- **Android:** aparelho com depuração sem fio, preferencialmente Android 11 ou superior, na mesma rede local do computador.
+- **Somente para webcam virtual:** `v4l2loopback`, `v4l-utils` e módulo compatível com o kernel.
+
+Instale o [Android SDK Platform-Tools](https://developer.android.com/tools/releases/platform-tools) e o [scrcpy](https://github.com/Genymobile/scrcpy/releases) separadamente. O Android Link aproveita essas ferramentas existentes e não as substitui.
+
+## Instalação
+
+### Opção recomendada: pacote Debian construído a partir do repositório
 
 ```bash
-sudo apt install ./android-link-cosmic_1.1.0_all.deb
+git clone https://github.com/Arthurregiani/android-link-cosmic.git
+cd android-link-cosmic
+
+./packaging/build_deb.sh
+sudo apt install ./dist/android-link-cosmic_1.1.0_all.deb
 ```
 
-Este pacote instala o app em `/usr/share/android-link/`, o comando `/usr/bin/android-link` e o atalho no menu do COSMIC. A instalação pedirá confirmação do APT para dependências de GUI/QR que não estiverem instaladas. Não substitui sua cópia pessoal do ADB nem do scrcpy e não cria serviço systemd. Para remover: `sudo apt remove android-link-cosmic`.
+Depois, abra **Android Link** pelo menu de aplicativos do COSMIC ou execute `android-link`.
 
-### Opção B — instalação no perfil do usuário, sem pacote `.deb`
+O pipeline do [GitHub Actions](https://github.com/Arthurregiani/android-link-cosmic/actions) também gera o pacote `.deb` como artefato de build. **O arquivo `.deb` não é mantido no código-fonte do Git.** Se a versão mudar, confira o nome gerado em `dist/`.
 
-Extraia o arquivo `.tar.gz`, abra o terminal na pasta extraída e rode:
+### Alternativa: instalação no perfil do usuário
+
+A partir da pasta clonada:
 
 ```bash
 ./instalar.sh
+~/.local/bin/android-link
 ```
 
-O instalador utiliza `sudo apt-get install` **somente para dependências GTK/QR ausentes**, instala o aplicativo em `~/.local/share/android-link`, o iniciador em `~/.local/bin/android-link` e o atalho no menu de aplicativos COSMIC. Ele **não instala systemd, não edita firmware, não desativa firewalls, não executa ADB com root** e não altera a configuração existente do Galaxy.
+Esse instalador copia os arquivos para `~/.local/share/android-link`, cria o lançador no menu e instala via APT somente as dependências gráficas/QR ausentes. Pode solicitar `sudo` para essas dependências; não instala nem modifica ADB/scrcpy.
 
-Abra **Android Link** no menu do COSMIC; ou execute `android-link` (opção `.deb`) ou `~/.local/bin/android-link` (opção `.tar.gz`).
+### Caminhos personalizados para ADB e scrcpy
 
-## Uso
+O aplicativo procura, nesta ordem:
 
-1. Abra o app. Ele tenta reconectar um único Android previamente pareado detectado pelo mDNS (não adivinha IP/porta).
-2. Caso seja a primeira vez, clique **Parear outro Android por QR Code**. No celular: `Opções do desenvolvedor → Depuração sem fio → Parear dispositivo com QR Code`. Aponte o scanner do próprio Android para o código na tela. O código vence em 120 s e desaparece quando a janela é fechada.
-3. Se quiser apenas reconectar, clique **Atualizar** e **Conectar**. O pareamento TLS prévio continua válido em condições normais.
-4. Selecione câmera traseira/frontal, limite de tamanho e FPS, então use **Abrir câmera**, **Espelhar Android** ou **Usar como webcam virtual**.
-5. Veja a **bateria do smartphone** na própria tela: percentual e situação (carregando, descarregando, carga completa). O app consulta o Galaxy selecionado via `adb shell dumpsys battery` ao conectar/selecionar e aproximadamente a cada 30 segundos enquanto a janela estiver aberta. Não salva o histórico de bateria nem instala aplicativo no celular.
-6. Use **Parar transmissão** ou feche o aplicativo para encerrar o scrcpy iniciado pelo app. Nenhum serviço extra é instalado.
+| Ferramenta | Variável de ambiente | Caminho preferencial existente | Alternativa |
+| --- | --- | --- | --- |
+| ADB | `ANDROID_LINK_ADB` | `~/Android/platform-tools/adb` | `adb` no `PATH` |
+| scrcpy | `ANDROID_LINK_SCRCPY` | `~/Downloads/scrcpy-linux-x86_64-v5.0.1/scrcpy` | `scrcpy` no `PATH` |
 
-Se o mesmo celular aparecer simultaneamente como IP TCP/IP e endereço mDNS, o app consolida as duas entradas (desde que o ADB anuncie o mesmo endpoint).
+Caso os executáveis estejam em outros locais:
 
-## Webcam virtual — configuração opcional
+```bash
+ANDROID_LINK_ADB="/caminho/para/adb" \
+ANDROID_LINK_SCRCPY="/caminho/para/scrcpy" \
+android-link
+```
 
-Primeiro teste **Abrir câmera**. Para expor o vídeo como webcam em OBS, Discord, navegadores etc., é necessário um dispositivo `v4l2loopback` (um driver/módulo do kernel independente do aplicativo):
+Os caminhos do usuário não são incluídos no repositório. Evite usar o scrcpy 1.25 distribuído por alguns repositórios antigos: ele não suporta a origem de vídeo `camera`.
+
+## Primeira conexão e uso diário
+
+1. Conecte celular e computador à mesma rede local.
+2. No Android, abra **Opções do desenvolvedor → Depuração sem fio** e ative a função.
+3. Se o celular **ainda não estiver pareado**, clique em **Parear outro Android por QR Code** no Android Link e selecione **Parear dispositivo com QR Code** no Android. O QR expira após 120 segundos.
+4. Se já estiver pareado, abra o Android Link e use **Atualizar** / **Conectar** caso a reconexão não ocorra automaticamente. Não é preciso escanear um novo QR em cada utilização.
+5. Selecione o aparelho. A bateria e seu estado de carregamento aparecerão na interface.
+6. Use **Espelhar Android**, **Abrir câmera** ou **Usar como webcam virtual**. Para encerrar, clique em **Parar transmissão** ou feche a janela.
+
+A reconexão depende de o Android manter a depuração sem fio habilitada, de o mDNS funcionar e de a rede permitir comunicação entre dispositivos. Ela **não é garantida** durante trocas de rede ou quando o sistema desativa a depuração.
+
+## Configurar a webcam virtual
+
+A visualização da câmera funciona sem driver virtual. Para disponibilizá-la ao Google Meet, Discord e outros consumidores V4L2, configure o `v4l2loopback` **uma vez**:
 
 ```bash
 sudo apt install v4l2loopback-dkms v4l-utils
 sudo modprobe v4l2loopback video_nr=42 card_label='Galaxy Camera' exclusive_caps=1
-v4l2-ctl -D -d /dev/video42
+
+v4l2-ctl --device=/dev/video42 --all
 ```
 
-Depois, clique **Usar como webcam virtual**. O app valida que `/dev/video42` é mesmo do `v4l2loopback` antes de iniciar a transmissão. A webcam virtual é criada pelo módulo; o app **não carrega módulos como root automaticamente**.
+Confirme antes que `/dev/video42` não pertence a outro dispositivo. Se o módulo já estiver carregado com opções diferentes, **não o descarregue enquanto estiver em uso**. Em kernels personalizados, o DKMS precisa dos headers compatíveis.
 
-### Deixar a webcam pronta após reiniciar, sem terminal a cada uso
+Com o módulo pronto, clique em **Usar como webcam virtual** no Android Link e então selecione **Galaxy Camera** no aplicativo de videochamada. **Inicie a transmissão antes de abrir a lista de câmeras**: com `exclusive_caps=1`, a captura é anunciada quando há um produtor de vídeo ativo.
 
-**Opcional, com execução explícita como administrador:**
+### Carregar o módulo automaticamente após reiniciar
+
+Opcionalmente, dentro da pasta do projeto:
 
 ```bash
 sudo ./scripts/configurar-webcam.sh
 ```
 
-O script confirma que o módulo está instalado, verifica conflito em `/dev/video42`, configura somente dois arquivos próprios em `/etc/modprobe.d/` e `/etc/modules-load.d/` e tenta carregar o módulo. Não cria um daemon, não altera EFI nem Secure Boot. Em reinicializações futuras o `systemd-modules-load` tenta carregar `v4l2loopback` com `video_nr=42`, `card_label=Galaxy Camera` e `exclusive_caps=1`. Se o módulo já estava carregado com parâmetros diferentes, os novos parâmetros não entram em vigor até uma recarga segura ou reinicialização.
+O script escreve uma configuração específica em `/etc/modprobe.d/` e `/etc/modules-load.d/`, verifica conflito no dispositivo e tenta carregar o módulo. Ele **não cria um serviço do Android Link**, não altera o bootloader e não modifica o Secure Boot. Não executá-lo se existir uma configuração incompatível sem antes revisá-la.
 
-Para remover **somente essa configuração de carregamento**:
+Para remover apenas essa configuração de carregamento:
 
 ```bash
 sudo ./scripts/remover-config-webcam.sh
 ```
 
-O script de remoção não descarrega o módulo em uso, não remove o pacote DKMS e não desinstala o Android Link.
+**Secure Boot:** na máquina de referência, o `v4l2loopback` DKMS sem assinatura foi rejeitado com `Key was rejected by service`. A webcam foi testada com Secure Boot desativado. **Reativá-lo sem assinar o módulo com uma chave aceita pelo kernel poderá bloquear a webcam novamente.** O Android Link não muda chaves UEFI, MOK, firmware ou opções de inicialização.
 
-**Secure Boot:** o Galaxy Camera foi validado pelo usuário com Secure Boot desativado porque o módulo DKMS estava sem assinatura reconhecida. Se reativar o Secure Boot, `v4l2loopback` poderá voltar a falhar com `Key was rejected by service`. Não habilite o Secure Boot de volta assumindo que a simples instalação do script resolve essa exigência: configurar assinatura de módulo/raízes confiáveis exige diagnóstico específico do boot com `systemd-boot` e consentimento explícito para mudanças de confiança.
+## Compatibilidade e validação
 
-**Compatibilidade:** o fluxo scrcpy → V4L2 deve ser verificado no Google Meet, Discord e em outros aplicativos. O Meet foi validado pelo usuário na configuração anterior; a versão **1.1.0** ainda requer validação presencial da interface.
+Testes realizados no ambiente de referência em **19/10/2026**:
 
-**Atenção ao Pop!_OS:** a instalação do `v4l2loopback-dkms` depende dos headers compatíveis com seu kernel customizado. Se o DKMS não compilar, não force a instalação nem descarregue módulos em uso; o espelhamento e a câmera em janela continuarão funcionando sem esse driver.
+| Cenário | Resultado |
+| --- | --- |
+| ADB 37.0.1 e descoberta mDNS do Galaxy A54 | Confirmado |
+| Bateria real e transição entre carregando/descarregando na interface GTK4 | Confirmado |
+| Execução de espelhamento, câmera e webcam pela lógica da interface | Confirmado; não substitui inspeção visual de todas as janelas |
+| Recebimento de quadros reais de `/dev/video42` por consumidor V4L2 | Confirmado |
+| Prévia da **Galaxy Camera** no Google Meet | Confirmada no navegador de teste do Codex; não houve chamada |
+| Discord e navegador Zen/Firefox do usuário | Validação final ainda pendente |
+| Novo pareamento por QR Code | Implementado e coberto por testes, sem novo pareamento físico nessa validação |
+| Testes automatizados | 22 aprovados e 1 teste GTK ignorado na execução padrão; teste GTK aprovado separadamente |
 
-Se `/dev/video42` estiver ocupado, ou o módulo já estiver ativo com outros parâmetros, não execute `modprobe -r` sem verificar os processos que usam a webcam. Consulte `v4l2-ctl --list-devices` e `lsmod | grep v4l2loopback`.
+Consulte [VALIDACAO.md](VALIDACAO.md) para as evidências, ressalvas e procedimentos específicos, e [CHANGELOG.md](CHANGELOG.md) para o histórico.
 
-## Configuração de caminhos customizados
+### Se a câmera não aparecer no navegador
 
-O aplicativo prioriza:
+- Inicie **Usar como webcam virtual** antes de abrir as configurações de vídeo e recarregue a página.
+- Confirme as permissões de câmera do site e se `/dev/video42` está recebendo quadros.
+- No Firefox/Zen, se a enumeração via PipeWire continuar falhando, uma alternativa **experimental e reversível** é testar `media.webrtc.camera.allow-pipewire=false` em `about:config`. Registre o valor anterior para poder restaurá-lo. Essa alteração **não foi aplicada nem validada no perfil do usuário**.
+- Em aplicativos Flatpak, confirme o acesso ao dispositivo antes de modificar permissões; não amplie o acesso ao sistema inteiro sem necessidade.
+- Se o Android aparecer duplicado como IP e mDNS, use **Atualizar**; a interface tenta consolidar as entradas correspondentes ao mesmo endpoint.
 
-- `ANDROID_LINK_ADB`, senão `~/Android/platform-tools/adb`, senão o `adb` no PATH.
-- `ANDROID_LINK_SCRCPY`, senão `~/Downloads/scrcpy-linux-x86_64-v5.0.1/scrcpy`, senão o `scrcpy` no PATH.
+## Privacidade e funcionamento em segundo plano
 
-Exemplo:
+- O aplicativo não exige cadastro, servidor próprio ou serviço residente de sincronização.
+- O ADB se comunica com o Android pela rede local, após autorização no aparelho. **O ADB possui privilégios elevados de depuração**: habilite-o somente em redes confiáveis.
+- O QR de pareamento utiliza segredo temporário; o programa não publica chaves ADB nem armazena histórico de bateria.
+- A captura é iniciada sob demanda. Ao fechar o Android Link, suas transmissões scrcpy são encerradas; o **servidor ADB**, compartilhado com outros programas, pode continuar em execução.
+- O último log do scrcpy fica em `~/.cache/android-link/scrcpy-last.log`, com acesso restrito ao usuário. O diagnóstico pode exibir IPs da rede local: revise antes de compartilhar capturas ou logs.
 
-```bash
-ANDROID_LINK_ADB="$HOME/Android/platform-tools/adb" \
-ANDROID_LINK_SCRCPY="$HOME/Downloads/scrcpy-linux-x86_64-v5.0.1/scrcpy" \
-~/.local/bin/android-link
-```
-
-Para configurar caminhos permanentes no lançador da opção B, edite `~/.local/bin/android-link` e exporte as variáveis. Na opção A, crie um script usuário que exporte as variáveis e lance `/usr/bin/android-link`, depois ajuste o campo `Exec=` numa cópia do `.desktop` em `~/.local/share/applications/`. **Use scrcpy >= 2.2** para suportar `--video-source=camera`.
-
-## Segurança e ciclo de vida
-
-- O ADB oferece acesso poderoso ao Android; mantenha a depuração sem fio habilitada **somente na rede confiável**, desligue-a quando não estiver usando e revogue dispositivos desconhecidos nas opções de desenvolvedor.
-- Cada QR gera um nome e segredo aleatórios, armazenados apenas durante o pareamento e num diretório temporário privado enquanto a janela está aberta.
-- Não são usados shell arbitrário, comandos recebidos pela rede, servidores HTTP ou permissões adicionais de acesso remoto.
-- O app encerra suas próprias sessões de scrcpy ao fechar. O servidor ADB nativo, compartilhado com outras ferramentas, pode permanecer em segundo plano; ele não é um serviço criado por este aplicativo.
-- Logs de execução do scrcpy ficam em `~/.cache/android-link/scrcpy-last.log`. O app não registra o segredo do QR nesses logs.
-- A conexão ADB pode cair quando a depuração sem fio é desativada pelo Android, ao mudar de rede ou após reiniciar. A reconexão automática pode ocorrer quando o aplicativo for aberto de novo e o mDNS estiver ativo.
-
-## Diagnóstico
-
-Clique **Diagnóstico** no canto superior direito. Ele informa versão/caminhos de ADB e scrcpy, dispositivos conectados, mDNS e situação da webcam virtual, sem modificar o sistema. Os comandos de diagnóstico podem exibir endereços IP locais.
-
-## Testes de código
+## Desenvolvimento
 
 ```bash
-PYTHONPATH=. python3 -m unittest discover -s tests -v
-```
+git clone https://github.com/Arthurregiani/android-link-cosmic.git
+cd android-link-cosmic
 
-Os testes exercitam parsing de ADB/mDNS, tratamento de duplicatas, QR, argumentos scrcpy e leitura de bateria (incluindo carga, descarga, erros e seleção explícita de dispositivo). **Não substituem teste real com GTK/COSMIC, Galaxy A54 ou o módulo de kernel**.
-
-## Desenvolvimento, build e GitHub
-
-O repositório deve conter o código-fonte (`android_link/`), testes (`tests/`), ícone, scripts, documentação de evolução para Codex (`CODEX_TAREFA.md`) e pipeline de CI (`.github/workflows/ci.yml`). O `.deb` é construído a partir do projeto, não versionado no Git.
-
-```bash
 PYTHONPATH=. python3 -m unittest discover -s tests -v
 ./packaging/build_deb.sh
 ```
 
-Para criar **um novo repositório privado** na sua conta GitHub pelo terminal do Pop!_OS, com `gh` instalado e `gh auth login` concluído:
+O CI executa compilação Python, testes unitários, verificação de sintaxe dos scripts e build do pacote Debian.
+
+**Estrutura do projeto:** `android_link/` (interface e integração ADB/scrcpy), `tests/`, `assets/`, `packaging/`, `scripts/` e `.github/workflows/`.
+
+Não envie para o repositório `~/.android/`, chaves de pareamento, logs, gravações, capturas privadas ou outros dados reais do telefone.
+
+## Remoção
+
+Instalação via `.deb`:
 
 ```bash
-./scripts/publicar-github.sh android-link-cosmic
+sudo apt remove android-link-cosmic
 ```
 
-O script recusa publicar em repositório que já exista ou em um remote configurado, para não sobrescrever código por acidente. Não transfira para GitHub chaves ADB (`~/.android/`), log de telefone, APKs não licenciados ou variáveis de ambiente privadas. A visibilidade inicial recomendada é **privada**; altere-a manualmente se quiser tornar o projeto público.
-
-## Desinstalação
-
-Se usou o `.deb`, rode `sudo apt remove android-link-cosmic`. Se usou o instalador da pasta extraída:
+Instalação pelo perfil do usuário (executar da pasta do projeto):
 
 ```bash
 ./desinstalar.sh
 ```
 
-Somente arquivos instalados pelo app no usuário são removidos. ADB, scrcpy, chaves de pareamento e drivers de terceiros permanecem intactos.
+O aplicativo não remove ADB, scrcpy, pareamentos existentes nem o módulo de terceiros `v4l2loopback`.
 
-## Referências técnicas
+## Referências
 
-- [scrcpy oficial](https://github.com/Genymobile/scrcpy) — espelhamento, câmera e V4L2.
-- [Guia de webcam V4L2 do scrcpy](https://github.com/Genymobile/scrcpy/blob/master/doc/v4l2.md).
-- [adb-qr](https://github.com/aleixrodriala/adb-qr) — descrição do formato de QR e pareamento via mDNS.
+- [scrcpy — projeto oficial](https://github.com/Genymobile/scrcpy)
+- [scrcpy — webcam virtual V4L2](https://github.com/Genymobile/scrcpy/blob/master/doc/v4l2.md)
+- [Android — depuração sem fio](https://developer.android.com/tools/adb#connect-to-a-device-over-wi-fi)
+- [Código e execuções de CI deste projeto](https://github.com/Arthurregiani/android-link-cosmic)
 
-Este projeto é uma implementação independente, sem associação oficial com Samsung, Android, RustDesk ou System76.
+> **Licenciamento:** este repositório ainda não possui um arquivo `LICENSE`. Disponibilidade pública do código não deve ser interpretada como concessão automática de licença para redistribuição ou modificação.
